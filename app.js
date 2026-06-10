@@ -397,24 +397,97 @@ async function copyCurrentTable() {
   copyTableButton.disabled = true;
 
   try {
-    if (navigator.clipboard?.write && window.ClipboardItem) {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "text/html": new Blob([html], { type: "text/html" }),
-          "text/plain": new Blob([text], { type: "text/plain" })
-        })
-      ]);
-    } else if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-    } else {
-      throw new Error("Clipboard API indisponível");
-    }
-
+    await copyTableToClipboard(html, text);
     showCopyFeedback();
   } catch (error) {
-    alert("Não foi possível copiar a tabela automaticamente. Tente selecionar e copiar manualmente.");
+    showCopyErrorFeedback();
+    alert("Não foi possível copiar a tabela automaticamente neste navegador. Tente selecionar a tabela e copiar manualmente.");
   } finally {
     copyTableButton.disabled = false;
+  }
+}
+
+async function copyTableToClipboard(html, text) {
+  const attempts = [
+    () => copyRichClipboard(html, text),
+    () => copyPlainClipboard(text),
+    () => copyHtmlSelectionFallback(html),
+    () => copyTextSelectionFallback(text)
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      await attempt();
+      return;
+    } catch (error) {
+      // Tenta o próximo método de cópia disponível no navegador.
+    }
+  }
+
+  throw new Error("Nenhum método de cópia funcionou");
+}
+
+async function copyRichClipboard(html, text) {
+  if (!navigator.clipboard?.write || !window.ClipboardItem) {
+    throw new Error("ClipboardItem indisponível");
+  }
+
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      "text/html": new Blob([html], { type: "text/html" }),
+      "text/plain": new Blob([text], { type: "text/plain" })
+    })
+  ]);
+}
+
+async function copyPlainClipboard(text) {
+  if (!navigator.clipboard?.writeText) {
+    throw new Error("writeText indisponível");
+  }
+
+  await navigator.clipboard.writeText(text);
+}
+
+function copyHtmlSelectionFallback(html) {
+  const container = document.createElement("div");
+  container.contentEditable = "true";
+  container.style.position = "fixed";
+  container.style.left = "-9999px";
+  container.style.top = "0";
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(container);
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  const copied = document.execCommand("copy");
+  selection.removeAllRanges();
+  container.remove();
+
+  if (!copied) {
+    throw new Error("execCommand HTML falhou");
+  }
+}
+
+function copyTextSelectionFallback(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+
+  if (!copied) {
+    throw new Error("execCommand texto falhou");
   }
 }
 
@@ -449,12 +522,22 @@ function escapeHtml(value) {
 }
 
 function showCopyFeedback() {
-  const originalText = copyTableButton.textContent;
+  const originalHtml = copyTableButton.innerHTML;
   copyTableButton.textContent = "✓";
   copyTableButton.classList.add("is-copied");
   window.setTimeout(() => {
-    copyTableButton.textContent = originalText;
+    copyTableButton.innerHTML = originalHtml;
     copyTableButton.classList.remove("is-copied");
+  }, 1400);
+}
+
+function showCopyErrorFeedback() {
+  const originalHtml = copyTableButton.innerHTML;
+  copyTableButton.textContent = "!";
+  copyTableButton.classList.add("is-error");
+  window.setTimeout(() => {
+    copyTableButton.innerHTML = originalHtml;
+    copyTableButton.classList.remove("is-error");
   }, 1400);
 }
 
