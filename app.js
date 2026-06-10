@@ -392,6 +392,7 @@ async function generatePdfReport() {
   try {
     const { jsPDF } = jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const brandbar = await loadImageDataUrl("assets/cdsp-brandbar.png").catch(() => null);
     const logo = await loadImageDataUrl("assets/cdsp-logo.png").catch(() => null);
     const page = {
       width: 210,
@@ -411,20 +412,30 @@ async function generatePdfReport() {
     let y = 0;
 
     const drawHeader = () => {
-      doc.setFillColor(...colors.primary);
-      doc.rect(0, 0, page.width, 18, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text("COORDENADORIA DE DEFESA DA SAÚDE PÚBLICA", page.margin, 11);
-      doc.setFont("helvetica", "normal");
-      doc.text("PGE-MT", page.width - page.margin, 11, { align: "right" });
+      const headerHeight = 25.2;
 
-      if (logo) {
-        doc.addImage(logo, "PNG", page.width - page.margin - 43, 23, 43, 12.5);
+      if (brandbar) {
+        doc.addImage(brandbar, "PNG", 0, 0, page.width, headerHeight);
+      } else {
+        doc.setFillColor(...colors.primary);
+        doc.rect(0, 0, page.width, headerHeight, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.text("COORDENADORIA DE DEFESA DA SAÚDE PÚBLICA", page.margin, 11);
+        doc.setFont("helvetica", "normal");
+        doc.text("PGE-MT", page.width - page.margin, 11, { align: "right" });
+
+        if (logo) {
+          const logoX = page.width - page.margin - 45;
+          const logoY = 5.5;
+          doc.setFillColor(85, 117, 125);
+          doc.roundedRect(logoX - 2, logoY - 2, 47, 16.5, 2, 2, "F");
+          doc.addImage(logo, "PNG", logoX, logoY, 43, 12.5);
+        }
       }
 
-      y = 34;
+      y = headerHeight + 16;
       doc.setTextColor(...colors.primary);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(15);
