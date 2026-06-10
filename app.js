@@ -40,7 +40,7 @@ const sectors = [
                 consumable("Reservatório (caixa c/ 10 unidades)", 213, 1),
                 permanent("Transmissor (1 unidade permanente)", 3492),
                 permanent("Sistema de infusão - inclui aplicador, cabo USB, carregador e capa (1 unidade permanente)", 21280),
-                consumable("Lancetas de teste para meidas de glicose (caixa c/ 204 lancetas)", 99.9, 1),
+                consumable("Lancetas de teste para medidas de glicose (caixa c/ 204 lancetas)", 99.9, 1),
                 consumable("Tiras (caixa c/ 50 unidades)", 108.9, 1)
               ]
             }
@@ -246,7 +246,7 @@ function renderItems() {
 
   if (!hypothesis) {
     itemsBody.innerHTML = "";
-    grandTotal.textContent = moneyFormatter.format(0);
+    grandTotal.textContent = formatMoney(0);
     return;
   }
 
@@ -374,7 +374,6 @@ function resetCurrentHypothesis() {
 
 async function generatePdfReport() {
   const subject = currentSubject();
-  const sector = currentSector();
   const hypothesis = currentHypothesis();
 
   if (!subject?.calculator || !hypothesis) {
@@ -417,7 +416,7 @@ async function generatePdfReport() {
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text("COORDENADORIA DE DEFESA DA SAUDE PUBLICA", page.margin, 11);
+      doc.text("COORDENADORIA DE DEFESA DA SAÚDE PÚBLICA", page.margin, 11);
       doc.setFont("helvetica", "normal");
       doc.text("PGE-MT", page.width - page.margin, 11, { align: "right" });
 
@@ -428,8 +427,8 @@ async function generatePdfReport() {
       y = 34;
       doc.setTextColor(...colors.primary);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(17);
-      doc.text("Demonstrativo de calculo", page.margin, y);
+      doc.setFontSize(15);
+      doc.text("Demonstrativo de Cálculo do Valor da Causa", page.margin, y);
       y += 8;
       doc.setFontSize(12);
       doc.setTextColor(...colors.teal);
@@ -447,21 +446,6 @@ async function generatePdfReport() {
     };
 
     drawHeader();
-    drawInfoBox(doc, page, colors, [
-      ["Setor", sector.name],
-      ["Assunto", subject.name],
-      ["Hipotese", hypothesis.name],
-      ["Emissao", new Date().toLocaleString("pt-BR")]
-    ], y);
-    y += 36;
-
-    doc.setTextColor(...colors.ink);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const intro = `Demonstrativo gerado a partir dos valores atualmente selecionados na calculadora. Os campos editaveis correspondem aos quantitativos mensais dos insumos consumiveis.`;
-    const introLines = doc.splitTextToSize(intro, page.width - page.margin * 2);
-    doc.text(introLines, page.margin, y);
-    y += introLines.length * 5 + 5;
 
     y = drawTableHeader(doc, page, colors, y);
     for (const item of hypothesis.items) {
@@ -473,7 +457,7 @@ async function generatePdfReport() {
       const row = [
         item.name,
         formatMoney(item.unitValue),
-        item.type === "permanent" ? "1 unidade" : `${formatQuantity(quantity)} / mes`,
+        item.type === "permanent" ? "1 unidade" : `${formatQuantity(quantity)} / mês`,
         formula,
         formatMoney(annual)
       ];
@@ -503,8 +487,15 @@ async function generatePdfReport() {
     doc.setTextColor(...colors.muted);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    const rule = "Regra aplicada: consumiveis = valor unitario x quantitativo mensal x 12; permanentes = valor unitario x 1.";
+    const rule = "Regra aplicada: consumíveis = valor unitário x quantitativo mensal x 12; permanentes = valor unitário x 1.";
     doc.text(doc.splitTextToSize(rule, page.width - page.margin * 2), page.margin, y);
+    y += 10;
+
+    ensureSpace(12);
+    doc.setTextColor(...colors.muted);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.text("O cálculo do valor da causa foi elaborado em estrita consonância com a documentação probatória acostada aos autos.", page.margin, y);
 
     addPageNumbers(doc, page, colors);
     doc.save(`${slugify(`demonstrativo-calculo-${subject.name}-${hypothesis.name}`)}.pdf`);
@@ -522,26 +513,6 @@ async function loadImageDataUrl(url) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(blob);
-  });
-}
-
-function drawInfoBox(doc, page, colors, rows, y) {
-  doc.setFillColor(...colors.soft);
-  doc.setDrawColor(...colors.line);
-  doc.roundedRect(page.margin, y, page.width - page.margin * 2, 28, 2, 2, "FD");
-
-  const colWidth = (page.width - page.margin * 2) / 2;
-  rows.forEach(([label, value], index) => {
-    const x = page.margin + (index % 2) * colWidth + 5;
-    const rowY = y + 8 + Math.floor(index / 2) * 11;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...colors.teal);
-    doc.text(label.toUpperCase(), x, rowY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...colors.ink);
-    doc.text(String(value), x, rowY + 5);
   });
 }
 
@@ -586,7 +557,7 @@ function measureTableRow(doc, row) {
 function tableColumns(page) {
   const widths = [58, 28, 27, 42, 27];
   let x = page.margin;
-  return ["Insumo", "Unitario", "Qtd.", "Calculo", "Valor anual"].map((label, index) => {
+  return ["Insumo", "Unitário", "Qtd.", "Cálculo", "Valor anual"].map((label, index) => {
     const column = { label, x, width: widths[index] };
     x += widths[index];
     return column;
@@ -600,7 +571,7 @@ function addPageNumbers(doc, page, colors) {
     doc.setTextColor(...colors.muted);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(`Pagina ${pageNumber} de ${pageCount}`, page.width - page.margin, 287, { align: "right" });
+    doc.text(`Página ${pageNumber} de ${pageCount}`, page.width - page.margin, 287, { align: "right" });
   }
 }
 
