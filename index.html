@@ -55,9 +55,12 @@
             <span id="activeSector" class="kicker">Fora do SUS e/ou Internação Compulsória</span>
             <h2 id="calc-title">Bomba de Infusão de Insulina</h2>
           </div>
-          <div class="total-card" aria-live="polite">
-            <span>Total da causa</span>
-            <strong id="grandTotal">R$ 0,00</strong>
+          <div class="total-stack">
+            <div class="total-card" aria-live="polite">
+              <span>Total da causa</span>
+              <strong id="grandTotal">R$ 0,00</strong>
+            </div>
+            <button id="downloadPdfButton" class="download-button" type="button">Gerar demonstrativo PDF</button>
           </div>
         </div>
 
@@ -97,6 +100,7 @@
     </section>
   </main>
 
+  <script src="vendor/jspdf.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

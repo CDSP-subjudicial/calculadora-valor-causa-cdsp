@@ -83,6 +83,7 @@ const calcTitle = document.querySelector("#calc-title");
 const calculatorView = document.querySelector("#calculatorView");
 const placeholderView = document.querySelector("#placeholderView");
 const resetButton = document.querySelector("#resetButton");
+const downloadPdfButton = document.querySelector("#downloadPdfButton");
 
 function consumable(name, unitValue, monthlyQuantity) {
   return {
@@ -168,6 +169,10 @@ function calculateTotal(hypothesis) {
   return hypothesis.items.reduce((total, item) => total + calculateAnnual(hypothesis, item), 0);
 }
 
+function formatMoney(value) {
+  return moneyFormatter.format(value).replace(/\u00a0/g, " ");
+}
+
 function parseDecimal(value) {
   const normalized = value.replace(",", ".").trim();
   if (normalized === "") {
@@ -247,7 +252,7 @@ function renderItems() {
 
   hypothesisSummary.textContent = hypothesis.summary;
   itemsBody.innerHTML = hypothesis.items.map((item) => renderItemRow(hypothesis, item)).join("");
-  grandTotal.textContent = moneyFormatter.format(calculateTotal(hypothesis));
+  grandTotal.textContent = formatMoney(calculateTotal(hypothesis));
 }
 
 function renderItemRow(hypothesis, item) {
@@ -277,9 +282,9 @@ function renderItemRow(hypothesis, item) {
   return `
     <tr>
       <td class="item-name">${item.name}<span class="row-note">${note}</span></td>
-      <td class="fixed-cell money">${moneyFormatter.format(item.unitValue)}</td>
+      <td class="fixed-cell money">${formatMoney(item.unitValue)}</td>
       ${quantityCell}
-      <td class="fixed-cell annual-value">${moneyFormatter.format(annual)}</td>
+      <td class="fixed-cell annual-value">${formatMoney(annual)}</td>
     </tr>
   `;
 }
@@ -293,9 +298,11 @@ function renderCalculatorVisibility() {
   if (hasCalculator) {
     activeSector.textContent = currentSector().name;
     calcTitle.textContent = subject.name;
+    downloadPdfButton.disabled = false;
   } else {
     activeSector.textContent = "";
     calcTitle.textContent = "";
+    downloadPdfButton.disabled = true;
   }
 }
 
@@ -365,6 +372,238 @@ function resetCurrentHypothesis() {
   renderItems();
 }
 
+async function generatePdfReport() {
+  const subject = currentSubject();
+  const sector = currentSector();
+  const hypothesis = currentHypothesis();
+
+  if (!subject?.calculator || !hypothesis) {
+    return;
+  }
+
+  const jspdf = window.jspdf;
+  if (!jspdf?.jsPDF) {
+    alert("Não foi possível carregar o gerador de PDF. Confira se a pasta vendor foi enviada ao site.");
+    return;
+  }
+
+  downloadPdfButton.disabled = true;
+  downloadPdfButton.textContent = "Gerando PDF...";
+
+  try {
+    const { jsPDF } = jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const logo = await loadImageDataUrl("assets/cdsp-logo.png").catch(() => null);
+    const page = {
+      width: 210,
+      height: 297,
+      margin: 14,
+      bottom: 276
+    };
+    const colors = {
+      ink: [24, 36, 52],
+      muted: [82, 104, 122],
+      primary: [37, 44, 120],
+      teal: [47, 97, 112],
+      line: [214, 225, 237],
+      soft: [247, 251, 255],
+      ok: [15, 124, 98]
+    };
+    let y = 0;
+
+    const drawHeader = () => {
+      doc.setFillColor(...colors.primary);
+      doc.rect(0, 0, page.width, 18, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("COORDENADORIA DE DEFESA DA SAUDE PUBLICA", page.margin, 11);
+      doc.setFont("helvetica", "normal");
+      doc.text("PGE-MT", page.width - page.margin, 11, { align: "right" });
+
+      if (logo) {
+        doc.addImage(logo, "PNG", page.width - page.margin - 43, 23, 43, 12.5);
+      }
+
+      y = 34;
+      doc.setTextColor(...colors.primary);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(17);
+      doc.text("Demonstrativo de calculo", page.margin, y);
+      y += 8;
+      doc.setFontSize(12);
+      doc.setTextColor(...colors.teal);
+      doc.text(subject.name, page.margin, y);
+      y += 10;
+    };
+
+    const ensureSpace = (height) => {
+      if (y + height <= page.bottom) {
+        return;
+      }
+
+      doc.addPage();
+      drawHeader();
+    };
+
+    drawHeader();
+    drawInfoBox(doc, page, colors, [
+      ["Setor", sector.name],
+      ["Assunto", subject.name],
+      ["Hipotese", hypothesis.name],
+      ["Emissao", new Date().toLocaleString("pt-BR")]
+    ], y);
+    y += 36;
+
+    doc.setTextColor(...colors.ink);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const intro = `Demonstrativo gerado a partir dos valores atualmente selecionados na calculadora. Os campos editaveis correspondem aos quantitativos mensais dos insumos consumiveis.`;
+    const introLines = doc.splitTextToSize(intro, page.width - page.margin * 2);
+    doc.text(introLines, page.margin, y);
+    y += introLines.length * 5 + 5;
+
+    y = drawTableHeader(doc, page, colors, y);
+    for (const item of hypothesis.items) {
+      const quantity = getQuantity(hypothesis, item);
+      const annual = calculateAnnual(hypothesis, item);
+      const formula = item.type === "permanent"
+        ? `${formatMoney(item.unitValue)} x 1`
+        : `${formatMoney(item.unitValue)} x ${formatQuantity(quantity)} x 12`;
+      const row = [
+        item.name,
+        formatMoney(item.unitValue),
+        item.type === "permanent" ? "1 unidade" : `${formatQuantity(quantity)} / mes`,
+        formula,
+        formatMoney(annual)
+      ];
+      const rowHeight = measureTableRow(doc, row);
+      ensureSpace(rowHeight + 6);
+
+      if (y < 50) {
+        y = drawTableHeader(doc, page, colors, y);
+      }
+
+      y = drawTableRow(doc, page, colors, row, y, rowHeight);
+    }
+
+    ensureSpace(34);
+    y += 4;
+    doc.setFillColor(...colors.primary);
+    doc.roundedRect(page.margin, y, page.width - page.margin * 2, 22, 2, 2, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("TOTAL DA CAUSA", page.margin + 6, y + 8);
+    doc.setFontSize(18);
+    doc.text(formatMoney(calculateTotal(hypothesis)), page.width - page.margin - 6, y + 16, { align: "right" });
+    y += 30;
+
+    ensureSpace(22);
+    doc.setTextColor(...colors.muted);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const rule = "Regra aplicada: consumiveis = valor unitario x quantitativo mensal x 12; permanentes = valor unitario x 1.";
+    doc.text(doc.splitTextToSize(rule, page.width - page.margin * 2), page.margin, y);
+
+    addPageNumbers(doc, page, colors);
+    doc.save(`${slugify(`demonstrativo-calculo-${subject.name}-${hypothesis.name}`)}.pdf`);
+  } finally {
+    downloadPdfButton.disabled = false;
+    downloadPdfButton.textContent = "Gerar demonstrativo PDF";
+  }
+}
+
+async function loadImageDataUrl(url) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function drawInfoBox(doc, page, colors, rows, y) {
+  doc.setFillColor(...colors.soft);
+  doc.setDrawColor(...colors.line);
+  doc.roundedRect(page.margin, y, page.width - page.margin * 2, 28, 2, 2, "FD");
+
+  const colWidth = (page.width - page.margin * 2) / 2;
+  rows.forEach(([label, value], index) => {
+    const x = page.margin + (index % 2) * colWidth + 5;
+    const rowY = y + 8 + Math.floor(index / 2) * 11;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.teal);
+    doc.text(label.toUpperCase(), x, rowY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...colors.ink);
+    doc.text(String(value), x, rowY + 5);
+  });
+}
+
+function drawTableHeader(doc, page, colors, y) {
+  const columns = tableColumns(page);
+  doc.setFillColor(...colors.primary);
+  doc.rect(page.margin, y, page.width - page.margin * 2, 10, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  columns.forEach((column) => doc.text(column.label, column.x + 2, y + 6.5));
+  return y + 10;
+}
+
+function drawTableRow(doc, page, colors, row, y, rowHeight) {
+  const columns = tableColumns(page);
+  doc.setDrawColor(...colors.line);
+  doc.setFillColor(255, 255, 255);
+  doc.rect(page.margin, y, page.width - page.margin * 2, rowHeight, "FD");
+  doc.setTextColor(...colors.ink);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+
+  row.forEach((value, index) => {
+    const column = columns[index];
+    const lines = doc.splitTextToSize(String(value), column.width - 4);
+    doc.text(lines, column.x + 2, y + 5);
+  });
+
+  return y + rowHeight;
+}
+
+function measureTableRow(doc, row) {
+  const widths = [58, 28, 27, 42, 27];
+  const maxLines = row.reduce((max, value, index) => {
+    const lines = doc.splitTextToSize(String(value), widths[index] - 4).length;
+    return Math.max(max, lines);
+  }, 1);
+  return Math.max(12, maxLines * 4 + 6);
+}
+
+function tableColumns(page) {
+  const widths = [58, 28, 27, 42, 27];
+  let x = page.margin;
+  return ["Insumo", "Unitario", "Qtd.", "Calculo", "Valor anual"].map((label, index) => {
+    const column = { label, x, width: widths[index] };
+    x += widths[index];
+    return column;
+  });
+}
+
+function addPageNumbers(doc, page, colors) {
+  const pageCount = doc.getNumberOfPages();
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber);
+    doc.setTextColor(...colors.muted);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`Pagina ${pageNumber} de ${pageCount}`, page.width - page.margin, 287, { align: "right" });
+  }
+}
+
 setDefaultQuantities();
 renderSectors();
 renderAll();
@@ -374,3 +613,4 @@ subjectSelect.addEventListener("change", handleSubjectChange);
 hypothesisTabs.addEventListener("click", handleHypothesisClick);
 itemsBody.addEventListener("input", handleQuantityInput);
 resetButton.addEventListener("click", resetCurrentHypothesis);
+downloadPdfButton.addEventListener("click", generatePdfReport);

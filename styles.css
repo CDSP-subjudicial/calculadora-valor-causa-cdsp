@@ -227,12 +227,17 @@ p {
 
 .calc-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) 290px;
   gap: 18px;
   align-items: center;
   padding: 18px;
   border-bottom: 1px solid var(--line);
   background: #fbfdff;
+}
+
+.total-stack {
+  display: grid;
+  gap: 8px;
 }
 
 .total-card {
@@ -255,6 +260,28 @@ p {
   font-size: 1.9rem;
   line-height: 1.08;
   overflow-wrap: anywhere;
+}
+
+.download-button {
+  min-height: 42px;
+  border: 1px solid var(--ok);
+  border-radius: 6px;
+  background: var(--ok);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 9px 12px;
+}
+
+.download-button:hover {
+  background: #0b6a54;
+}
+
+.download-button:disabled {
+  border-color: var(--line-strong);
+  background: var(--fixed);
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .legend {
