@@ -84,6 +84,7 @@ const calculatorView = document.querySelector("#calculatorView");
 const placeholderView = document.querySelector("#placeholderView");
 const resetButton = document.querySelector("#resetButton");
 const downloadPdfButton = document.querySelector("#downloadPdfButton");
+const copyTableButton = document.querySelector("#copyTableButton");
 
 function consumable(name, unitValue, monthlyQuantity) {
   return {
@@ -299,10 +300,12 @@ function renderCalculatorVisibility() {
     activeSector.textContent = currentSector().name;
     calcTitle.textContent = subject.name;
     downloadPdfButton.disabled = false;
+    copyTableButton.disabled = false;
   } else {
     activeSector.textContent = "";
     calcTitle.textContent = "";
     downloadPdfButton.disabled = true;
+    copyTableButton.disabled = true;
   }
 }
 
@@ -370,6 +373,89 @@ function resetCurrentHypothesis() {
   }
 
   renderItems();
+}
+
+async function copyCurrentTable() {
+  const hypothesis = currentHypothesis();
+  if (!hypothesis) {
+    return;
+  }
+
+  const rows = hypothesis.items.map((item) => {
+    const quantity = getQuantity(hypothesis, item);
+    return [
+      item.name,
+      formatMoney(item.unitValue),
+      formatQuantity(quantity),
+      formatMoney(calculateAnnual(hypothesis, item))
+    ];
+  });
+  const headers = ["Insumo", "Valor unitário", "Quantitativo mensal", "Valor anual"];
+  const html = buildClipboardTableHtml(headers, rows);
+  const text = [headers, ...rows].map((row) => row.join("\t")).join("\n");
+
+  copyTableButton.disabled = true;
+
+  try {
+    if (navigator.clipboard?.write && window.ClipboardItem) {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" })
+        })
+      ]);
+    } else if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      throw new Error("Clipboard API indisponível");
+    }
+
+    showCopyFeedback();
+  } catch (error) {
+    alert("Não foi possível copiar a tabela automaticamente. Tente selecionar e copiar manualmente.");
+  } finally {
+    copyTableButton.disabled = false;
+  }
+}
+
+function buildClipboardTableHtml(headers, rows) {
+  const headerCells = headers
+    .map((header) => `<th style="border:1px solid #d6e1ed;background:#252c78;color:#ffffff;padding:8px;text-align:left;">${escapeHtml(header)}</th>`)
+    .join("");
+  const bodyRows = rows
+    .map((row) => {
+      const cells = row
+        .map((cell) => `<td style="border:1px solid #d6e1ed;padding:8px;">${escapeHtml(cell)}</td>`)
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+
+  return `
+    <table style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:11pt;width:100%;">
+      <thead><tr>${headerCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  `;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function showCopyFeedback() {
+  const originalText = copyTableButton.textContent;
+  copyTableButton.textContent = "✓";
+  copyTableButton.classList.add("is-copied");
+  window.setTimeout(() => {
+    copyTableButton.textContent = originalText;
+    copyTableButton.classList.remove("is-copied");
+  }, 1400);
 }
 
 async function generatePdfReport() {
@@ -595,4 +681,5 @@ subjectSelect.addEventListener("change", handleSubjectChange);
 hypothesisTabs.addEventListener("click", handleHypothesisClick);
 itemsBody.addEventListener("input", handleQuantityInput);
 resetButton.addEventListener("click", resetCurrentHypothesis);
+copyTableButton.addEventListener("click", copyCurrentTable);
 downloadPdfButton.addEventListener("click", generatePdfReport);

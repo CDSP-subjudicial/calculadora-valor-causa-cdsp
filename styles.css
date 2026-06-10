@@ -240,6 +240,12 @@ p {
   gap: 8px;
 }
 
+.total-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: 8px;
+}
+
 .total-card {
   display: grid;
   gap: 3px;
@@ -282,6 +288,37 @@ p {
   background: var(--fixed);
   color: var(--muted);
   cursor: not-allowed;
+}
+
+.copy-button {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border: 1px solid #aeb8c2;
+  border-radius: 6px;
+  background: #e7edf3;
+  color: #3c4b58;
+  cursor: pointer;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0;
+}
+
+.copy-button:hover {
+  background: #dbe3ea;
+}
+
+.copy-button:disabled {
+  border-color: var(--line-strong);
+  background: var(--fixed);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.copy-button.is-copied {
+  border-color: var(--ok);
+  color: var(--ok);
 }
 
 .legend {
