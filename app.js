@@ -293,6 +293,9 @@ function renderCalculatorVisibility() {
   if (hasCalculator) {
     activeSector.textContent = currentSector().name;
     calcTitle.textContent = subject.name;
+  } else {
+    activeSector.textContent = "";
+    calcTitle.textContent = "";
   }
 }
 
