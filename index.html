@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calculadora de Valor da Causa - CDSP</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <img class="brandbar" src="assets/cdsp-brandbar.png" alt="">
+    <div class="header-content">
+      <div class="header-copy">
+        <span class="kicker">Coordenadoria de Defesa da Saúde Pública</span>
+        <h1>Calculadora de Valor da Causa</h1>
+        <p>Interface para cálculo padronizado de custos em demandas de saúde pública.</p>
+      </div>
+      <img class="brand-logo" src="assets/cdsp-logo.png" alt="Logo CDSP">
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="selector-band" aria-labelledby="selecao-title">
+      <div>
+        <span class="kicker">Seleção em cascata</span>
+        <h2 id="selecao-title">Setor e assunto</h2>
+      </div>
+
+      <div class="field-grid">
+        <label class="field">
+          <span>Setor</span>
+          <select id="sectorSelect"></select>
+        </label>
+
+        <label class="field">
+          <span>Assunto</span>
+          <select id="subjectSelect"></select>
+        </label>
+      </div>
+    </section>
+
+    <section id="calculatorView" class="calculator-layout">
+      <aside class="hypothesis-panel" aria-labelledby="hipoteses-title">
+        <div>
+          <span class="kicker">Planilha base</span>
+          <h2 id="hipoteses-title">Hipóteses</h2>
+        </div>
+        <div id="hypothesisTabs" class="segmented-control" role="tablist" aria-label="Hipóteses de cálculo"></div>
+        <div id="hypothesisSummary" class="summary-note"></div>
+      </aside>
+
+      <section class="calc-panel" aria-labelledby="calc-title">
+        <div class="calc-head">
+          <div>
+            <span id="activeSector" class="kicker">Fora do SUS e/ou Internação Compulsória</span>
+            <h2 id="calc-title">Bomba de Infusão de Insulina</h2>
+          </div>
+          <div class="total-card" aria-live="polite">
+            <span>Total da causa</span>
+            <strong id="grandTotal">R$ 0,00</strong>
+          </div>
+        </div>
+
+        <div class="legend" aria-label="Legenda de campos">
+          <span><i class="legend-editable"></i>Campos em vermelho são editáveis</span>
+          <span><i class="legend-fixed"></i>Campos fixos ou calculados</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="cost-table">
+            <thead>
+              <tr>
+                <th>Insumo</th>
+                <th>Valor unitário</th>
+                <th>Quantitativo mensal</th>
+                <th>Valor anual</th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="formula-panel">
+          <div>
+            <span class="kicker">Regra aplicada</span>
+            <p>Consumíveis: valor unitário x quantitativo mensal x 12. Permanentes: valor unitário x 1.</p>
+          </div>
+          <button id="resetButton" class="ghost-button" type="button">Restaurar valores da planilha</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="placeholderView" class="placeholder-view" hidden>
+      <span class="kicker">Próxima fase</span>
+      <h2>Assunto ainda não parametrizado</h2>
+      <p>Este setor já está previsto na estrutura de dados, mas não há cálculos cadastrados para ele nesta versão.</p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
